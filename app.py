@@ -1,7 +1,13 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
+from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
 from typing import List
 
 app = FastAPI()
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
+templates = Jinja2Templates(directory="template")
 
 class ConnectionManager:
   def __init__(self):
@@ -26,13 +32,17 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
+@app.get("/", response_class=HTMLResponse)
+def read_item(request: Request):
+  return templates.TemplateResponse("index.html", {"request": request})
+
 @app.websocket("/ws/{client_id}")
 async def websocket_endpoint(websocket: WebSocket, client_id: int):
   await manager.connect(websocket)
   try:
     while True:
       data = await websocket.receive_json()
-      print(data)
+      # print(data)
       hex_data = bytes.fromhex(data["color"])
       await manager.broadcast(hex_data)
       # manager.whisper(bytes.fromhex(data))
